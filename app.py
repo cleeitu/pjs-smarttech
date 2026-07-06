@@ -137,7 +137,7 @@ CENÁRIO 2: Ciclo fracionado na virada do mês
 - Data de pagamento: {dt_pagamento_c2_f2.strftime('%d/%m/%Y')} (5º dia útil)
 
 
-Informações Importantes sobre o Fluxo:
+**Informações Importantes sobre o Fluxo:**
 1. Período de Transição: Esses cenários diferenciados aplicam-se apenas aos meses iniciais para o correto alinhamento do cronograma de pagamentos.
 2. Fluxo Recorrente (Padrão Definitivo): Após esse período de ajuste, seu faturamento seguirá o modelo padrão definitivo. Isso significa que o envio da sua Nota Fiscal deverá ocorrer até o dia 15 de cada mês (referente ao período do dia 16 do mês anterior ao dia 15 do mês atual), com o pagamento sendo realizado sempre no 5º dia útil do mês seguinte.
 3. Aprovação e Faturamento: Por favor, analise as opções acima e nos retorne informando qual dos dois cenários você prefere adotar. Emitiremos a Ordem de Compra (OC) somente após a sua escolha. A sua Nota Fiscal só deverá ser faturada após a emissão dessa OC.
@@ -172,6 +172,7 @@ with tab2:
         horas_extras = st.number_input("Horas Extras (R$)", min_value=0.0, value=0.0, step=50.0)
         valores_adicionais = st.number_input("Valores Adicionais / Férias (R$)", min_value=0.0, value=0.0, step=50.0)
         tera_mediacao = st.checkbox("Terá mediação? (Marque se houver)")
+        somar_mes_anterior = st.checkbox("Incluir ciclo anterior (Nota não emitida)?")
 
     st.subheader("Notas Pendentes de Pagamento")
     st.write("Insira as informações das notas já emitidas que ainda serão pagas.")
@@ -192,10 +193,14 @@ with tab2:
         else:
             dt_ultimo_16 = datetime.date(add_months(data_distrato, -1).year, add_months(data_distrato, -1).month, 16)
             
+        # Regra nova: Retroceder 1 mês se o ciclo anterior não foi faturado
+        if somar_mes_anterior:
+            dt_ultimo_16 = datetime.date(add_months(dt_ultimo_16, -1).year, add_months(dt_ultimo_16, -1).month, 16)
+            
         dias_trabalhados = (data_distrato - dt_ultimo_16).days + 1
         valor_dias_trabalhados = dias_trabalhados * diaria
         
-        # Soma de Horas Extras ao mês trabalhado (A hora extra faz parte do serviço)
+        # Soma de Horas Extras ao mês trabalhado
         total_servicos_mes = valor_dias_trabalhados + horas_extras
         
         # Multa/Aviso
@@ -207,15 +212,12 @@ with tab2:
         # --- MONTAR TEXTO ---
         texto_distrato = f"Pagamentos\n\n"
         
-        # Removida a string "+ Horas Extras" por solicitação
         texto_distrato += f"Serviços prestados de {dt_ultimo_16.strftime('%d/%m/%Y')} a {data_distrato.strftime('%d/%m/%Y')}: {format_currency(total_servicos_mes)}\n"
         
         if valor_aviso > 0:
-            # Texto alterado conforme solicitado
             texto_distrato += f"30 dias previsto em contrato: {format_currency(valor_aviso)}\n"
             
         if valores_adicionais > 0:
-            # Texto alterado conforme solicitado (Apenas serviços adicionais)
             texto_distrato += f"Serviços adicionais: {format_currency(valores_adicionais)}\n"
             
         # Adicionar Notas Pendentes ao texto
@@ -228,7 +230,7 @@ with tab2:
         
         texto_distrato += f"Equipamentos\n\nNosso time de ativos irá entrar em contato para devolução dos seguintes equipamentos:\n{equipamentos}\n\n"
         
-        # Regra da Mediação: Exibir a Documentação APENAS SE a mediação NÃO estiver ativada
+        # Regra da Mediação
         if not tera_mediacao:
             texto_distrato += f"Documentação\n\nO nosso jurídico está elaborando o distrato que conterá as informações acima, com encerramento do contrato para o dia {data_distrato.strftime('%d/%m/%Y')}. Você receberá um e-mail da nossa plataforma de assinatura (DocuSign), para validar e assinar o distrato."
             
